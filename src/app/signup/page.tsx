@@ -5,6 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
 import Link from 'next/link';
+import { useState } from "react";
 
 import { Button } from '@/components/ui/button';
 import {
@@ -17,9 +18,8 @@ import {
 } from "@/components/ui/form";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label'; // Still used for general layout consistency, but FormLabel is used for react-hook-form fields
 import { useToast } from "@/hooks/use-toast";
-
+import { registerUserAndSendVerification } from '@/actions/auth';
 
 const formSchema = z.object({
   email: z.string().email({ message: "Invalid email address." }),
@@ -27,16 +27,18 @@ const formSchema = z.object({
   confirmPassword: z.string().min(8, { message: "Password must be at least 8 characters." }),
 }).refine(data => data.password === data.confirmPassword, {
   message: "Passwords do not match.",
-  path: ["confirmPassword"], // path to show error under confirmPassword field
+  path: ["confirmPassword"], 
 });
 
 export type SignUpFormValues = z.infer<typeof formSchema>;
 
 export default function SignUpPage() {
   const { toast } = useToast();
+  const [isLoading, setIsLoading] = useState(false);
+
   const form = useForm<SignUpFormValues>({
     resolver: zodResolver(formSchema),
-    mode: "onChange", // Validate on change to enable/disable button
+    mode: "onChange", 
     defaultValues: {
       email: "",
       password: "",
@@ -44,13 +46,37 @@ export default function SignUpPage() {
     },
   });
 
-  function onSubmit(data: SignUpFormValues) {
-    console.log(data);
-    // Handle form submission logic here
-    toast({
-      title: "Sign Up Successful!",
-      description: "Your account has been created.",
-    });
+  async function onSubmit(data: SignUpFormValues) {
+    setIsLoading(true);
+    try {
+      // Get the base URL from the client side for the verification link
+      const origin = window.location.origin;
+      
+      const result = await registerUserAndSendVerification({ email: data.email, password: data.password }, origin);
+
+      if (result.success) {
+        toast({
+          title: "Registration Submitted",
+          description: result.message,
+        });
+        form.reset();
+      } else {
+        toast({
+          title: "Registration Failed",
+          description: result.message || "An unknown error occurred.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Sign up page error:", error);
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred on the page. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   }
 
   return (
@@ -70,7 +96,7 @@ export default function SignUpPage() {
                   <FormItem>
                     <FormLabel className="text-base">Email</FormLabel>
                     <FormControl>
-                      <Input placeholder="you@example.com" {...field} className="h-12 text-base" />
+                      <Input placeholder="you@example.com" {...field} className="h-12 text-base" disabled={isLoading} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -83,7 +109,7 @@ export default function SignUpPage() {
                   <FormItem>
                     <FormLabel className="text-base">Password</FormLabel>
                     <FormControl>
-                      <Input type="password" placeholder="••••••••" {...field} className="h-12 text-base" />
+                      <Input type="password" placeholder="••••••••" {...field} className="h-12 text-base" disabled={isLoading} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -96,7 +122,7 @@ export default function SignUpPage() {
                   <FormItem>
                     <FormLabel className="text-base">Confirm Password</FormLabel>
                     <FormControl>
-                      <Input type="password" placeholder="••••••••" {...field} className="h-12 text-base" />
+                      <Input type="password" placeholder="••••••••" {...field} className="h-12 text-base" disabled={isLoading} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -104,8 +130,8 @@ export default function SignUpPage() {
               />
             </CardContent>
             <CardFooter className="flex flex-col gap-4 p-6 pt-0">
-              <Button type="submit" className="w-full h-12 text-base" disabled={!form.formState.isValid}>
-                Sign Up
+              <Button type="submit" className="w-full h-12 text-base" disabled={!form.formState.isValid || isLoading}>
+                {isLoading ? "Processing..." : "Sign Up"}
               </Button>
               <p className="text-sm text-muted-foreground text-center">
                 Already have an account?{' '}
