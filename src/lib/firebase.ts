@@ -1,5 +1,6 @@
 import { initializeApp, getApps, FirebaseApp } from 'firebase/app';
 import { getAuth, Auth } from 'firebase/auth';
+import { getFirestore, Firestore } from 'firebase/firestore'; // Add this
 
 // TODO: Replace with your actual Firebase configuration values
 // It's highly recommended to use environment variables for these
@@ -15,6 +16,7 @@ const firebaseConfig = {
 
 let app: FirebaseApp;
 let auth: Auth;
+let db: Firestore; // Add this
 
 if (!getApps().length) {
   app = initializeApp(firebaseConfig);
@@ -23,5 +25,6 @@ if (!getApps().length) {
 }
 
 auth = getAuth(app);
+db = getFirestore(app); // Add this
 
-export { app, auth };
+export { app, auth, db }; // Add db to exports
