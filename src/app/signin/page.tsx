@@ -1,12 +1,13 @@
-"use client";
+// src/app/signin/page.tsx
+'use client';
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
 import Link from 'next/link';
-import { useState } from "react"; // Import useState
-import { FirebaseError } from 'firebase/app'; // Import FirebaseError
-import { signInWithEmailAndPassword } from "firebase/auth"; // Import signInWithEmailAndPassword
+import { useState, Suspense } from "react"; // Import Suspense
+import { FirebaseError } from 'firebase/app';
+import { signInWithEmailAndPassword } from "firebase/auth";
 
 import { Button } from '@/components/ui/button';
 import {
@@ -20,9 +21,9 @@ import {
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { useToast } from "@/hooks/use-toast";
-import { auth } from '@/lib/firebase'; // Import Firebase auth instance
-// Import useRouter to redirect after successful login
-import { useRouter } from 'next/navigation';
+import { auth } from '@/lib/firebase';
+import { useRouter, useSearchParams } from 'next/navigation'; // Import useSearchParams
+import { Loader2 } from 'lucide-react'; // For Suspense fallback
 
 const formSchema = z.object({
   email: z.string().email({ message: "Invalid email address." }),
@@ -31,10 +32,12 @@ const formSchema = z.object({
 
 export type SignInFormValues = z.infer<typeof formSchema>;
 
-export default function SignInPage() {
+// Inner component to use useSearchParams
+function SignInFormComponent() {
   const { toast } = useToast();
-  const router = useRouter(); // Initialize router
-  const [isLoading, setIsLoading] = useState(false); // Add isLoading state
+  const router = useRouter();
+  const searchParams = useSearchParams(); // Get search params
+  const [isLoading, setIsLoading] = useState(false);
 
   const form = useForm<SignInFormValues>({
     resolver: zodResolver(formSchema),
@@ -49,14 +52,18 @@ export default function SignInPage() {
     setIsLoading(true);
     try {
       const userCredential = await signInWithEmailAndPassword(auth, data.email, data.password);
-      // Handle successful sign-in
       toast({
         title: "Sign In Successful",
         description: `Welcome back, ${userCredential.user.email}!`,
       });
       form.reset();
-      // Redirect to homepage or dashboard after login
-      router.push('/');
+
+      const redirectPath = searchParams.get('redirect'); // Get redirect path from query
+      if (redirectPath && redirectPath.startsWith('/')) { // Basic validation for local path
+        router.push(redirectPath);
+      } else {
+        router.push('/'); // Default redirect to homepage
+      }
     } catch (error) {
       console.error("Sign in page error:", error);
       let errorMessage = "An unexpected error occurred. Please try again.";
@@ -64,6 +71,7 @@ export default function SignInPage() {
         switch (error.code) {
           case 'auth/user-not-found':
           case 'auth/wrong-password':
+          case 'auth/invalid-credential': // Added this as it's a common one
             errorMessage = "Invalid email or password. Please try again.";
             break;
           case 'auth/invalid-email':
@@ -71,9 +79,6 @@ export default function SignInPage() {
             break;
           case 'auth/user-disabled':
             errorMessage = "This account has been disabled.";
-            break;
-          case 'auth/invalid-credential':
-            errorMessage = "Invalid credential provided.";
             break;
           default:
             errorMessage = `Sign in failed: ${error.message}`;
@@ -141,5 +146,18 @@ export default function SignInPage() {
         </Form>
       </Card>
     </div>
+  );
+}
+
+// Wrap SignInFormComponent with Suspense for useSearchParams
+export default function SignInPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+      </div>
+    }>
+      <SignInFormComponent />
+    </Suspense>
   );
 }

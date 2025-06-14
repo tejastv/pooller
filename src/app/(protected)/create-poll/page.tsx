@@ -1,4 +1,4 @@
-// src/app/create-poll/page.tsx
+// src/app/(protected)/create-poll/page.tsx
 'use client';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm, useFieldArray } from "react-hook-form";
 import * as z from "zod";
@@ -16,9 +16,9 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { createPollAction } from '@/actions/poll';
-import Link from 'next/link';
+// No longer import ProtectedRoute here
+// No longer import Link from next/link (it wasn't used in CreatePollForm directly)
 
-// Revised Zod schema
 const optionSchema = z.object({
   text: z.string().min(1, { message: "Option text cannot be empty." }).max(100, { message: "Option text too long." }),
 });
@@ -35,10 +35,11 @@ export type PollFormValues = z.infer<typeof pollFormSchema>;
 
 const MAX_OPTIONS = 10;
 
+// This is now the default export, directly the form content
 export default function CreatePollPage() {
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
-  const { user } = useAuth();
+  const { user } = useAuth(); // Still need user for UID
   const { toast } = useToast();
 
   const form = useForm<PollFormValues>({
@@ -61,12 +62,8 @@ export default function CreatePollPage() {
 
   const onSubmit = async (data: PollFormValues) => {
     if (!user) {
-      toast({
-        title: "Authentication Error",
-        description: "You must be logged in to create a poll.",
-        variant: "destructive",
-      });
-      return;
+        toast({ title: "Error", description: "User not found, please try logging in again.", variant: "destructive" });
+        return;
     }
 
     setIsLoading(true);
@@ -99,6 +96,8 @@ export default function CreatePollPage() {
     }
   };
 
+  // The layout src/app/(protected)/layout.tsx handles protection.
+  // This component now assumes it's rendered only for authenticated users.
   return (
     <div className="flex flex-col items-center justify-center py-12">
       <Card className="w-full max-w-2xl shadow-xl">
@@ -107,14 +106,6 @@ export default function CreatePollPage() {
           <CardDescription>Fill in the details below to create your poll.</CardDescription>
         </CardHeader>
         <CardContent className="p-6">
-          {!user ? (
-             <div className="text-center space-y-4">
-                <p className="text-lg text-muted-foreground">Please sign in to create a poll.</p>
-                <Button asChild>
-                    <Link href={`/signin?redirect=${encodeURIComponent('/create-poll')}`}>Sign In</Link>
-                </Button>
-             </div>
-          ) : (
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
               <FormField
@@ -135,7 +126,6 @@ export default function CreatePollPage() {
                   </FormItem>
                 )}
               />
-
               <FormField
                 control={form.control}
                 name="pollType"
@@ -171,7 +161,6 @@ export default function CreatePollPage() {
                   </FormItem>
                 )}
               />
-
               <div>
                 <FormLabel className="text-lg mb-2 block">Poll Options</FormLabel>
                 {fields.map((item, index) => (
@@ -220,13 +209,11 @@ export default function CreatePollPage() {
                      <p className="text-sm font-medium text-destructive mt-1">{form.formState.errors.options.root.message}</p>
                 )}
               </div>
-
-              <Button type="submit" className="w-full h-12 text-lg" disabled={isLoading || !form.formState.isValid || !user}>
+              <Button type="submit" className="w-full h-12 text-lg" disabled={isLoading || !form.formState.isValid}>
                 {isLoading ? <Loader2 className="h-6 w-6 animate-spin" /> : "Create Poll"}
               </Button>
             </form>
           </Form>
-          )}
         </CardContent>
       </Card>
     </div>
