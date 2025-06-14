@@ -44,7 +44,7 @@ export default function HomePage() {
         )}
       </section>
 
-      <Link href="/signin" passHref>
+      <Link href="/create-poll" passHref>
         <Button size="lg" className="px-8 py-3 text-lg">
           Join or Create Polls
         </Button>
