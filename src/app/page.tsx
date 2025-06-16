@@ -27,9 +27,7 @@ export default async function HomePage() { // Make the component async
             {polls.map((poll) => (
               <PollCard
                 key={poll.id}
-                id={poll.id} // Pass poll.id as id prop
-                question={poll.description} // Use poll.description for the question prop
-                // percentage prop is temporarily removed/ignored
+                poll={poll} // Pass the entire poll object
               />
             ))}
           </div>
