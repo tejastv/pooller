@@ -100,3 +100,47 @@ export async function getPolls(): Promise<PollDocument[]> {
     return []; // Return an empty array in case of error
   }
 }
+
+
+// --- New server action to fetch a single poll by ID ---
+export async function getPollById(id: string): Promise<PollDocument | null> {
+  if (!id) {
+    console.error('getPollById received no ID.');
+    return null;
+  }
+  try {
+    const pollDocRef = doc(db, 'polls', id);
+    const docSnapshot = await getDoc(pollDocRef);
+
+    if (docSnapshot.exists()) {
+      const data = docSnapshot.data() as PollDataToSave; // Cast to the structure written to Firestore
+
+      let createdAtString = '';
+      if (data.createdAt instanceof Timestamp) {
+        createdAtString = data.createdAt.toDate().toISOString();
+      } else if (data.createdAt && typeof data.createdAt.seconds === 'number') {
+        createdAtString = new Timestamp(data.createdAt.seconds, data.createdAt.nanoseconds).toDate().toISOString();
+      }
+
+      const pollDocument: PollDocument = {
+        id: docSnapshot.id,
+        description: data.description,
+        options: data.options,
+        creatorId: data.creatorId,
+        allowMultipleVotes: data.allowMultipleVotes,
+        originalPollType: data.originalPollType,
+        // Ensure all fields from PollDataToSave (except original createdAt) are mapped
+        // For example, if PollDocument has other fields from PollDataToSave, map them here.
+        // This simplified mapping assumes PollDocument primarily needs these fields plus the transformed createdAt.
+        createdAt: createdAtString,
+      };
+      return pollDocument;
+    } else {
+      console.log(`Poll with ID ${id} not found.`);
+      return null;
+    }
+  } catch (error) {
+    console.error(`Error fetching poll with ID ${id}:`, error);
+    return null; // Return null in case of error
+  }
+}
